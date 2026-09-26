@@ -25,9 +25,7 @@ knitr::opts_chunk$set(
   warning = FALSE
 )
 
-# -----------------------------------------------------------------------------
-# CARGA Y LIMPIEZA (mismo pipeline que el notebook de análisis)
-# -----------------------------------------------------------------------------
+# LIMPIEZA
 airbnb <- read_csv("data/listings.csv.gz")
 
 airbnb_sel <- airbnb |>
@@ -44,9 +42,7 @@ airbnb_sel <- airbnb |>
 airbnb_precio <- airbnb_sel |>
   filter(!is.na(price), price > 0)
 
-# -----------------------------------------------------------------------------
-# KPIs GENERALES
-# -----------------------------------------------------------------------------
+# KPIS
 kpi_total          <- nrow(airbnb_precio)
 kpi_precio_mediano <- median(airbnb_precio$price)
 kpi_multi_host     <- mean(airbnb_precio$calculated_host_listings_count > 1)
@@ -63,9 +59,7 @@ kpi_top3_pct <- tabla_alcaldias |>
 
 alcaldia_top <- tabla_alcaldias |> slice_max(alojamientos, n = 1)
 
-# -----------------------------------------------------------------------------
-# PRECIO POR ALCALDÍA
-# -----------------------------------------------------------------------------
+# PRECIO POR ALCALDIA
 precio_alcaldia <- airbnb_precio |>
   group_by(neighbourhood_cleansed) |>
   summarise(
@@ -75,17 +69,13 @@ precio_alcaldia <- airbnb_precio |>
   ) |>
   arrange(desc(precio_mediano))
 
-# -----------------------------------------------------------------------------
-# TIPO DE ALOJAMIENTO
-# -----------------------------------------------------------------------------
+# TIPO ALOJAMIENTTO
 tabla_room_type <- airbnb_precio |>
   count(room_type) |>
   mutate(porcentaje = round(n / sum(n) * 100, 2)) |>
   arrange(desc(n))
 
-# -----------------------------------------------------------------------------
-# CAPACIDAD Y PRECIO
-# -----------------------------------------------------------------------------
+# CALIDAD Y PRECIO
 precio_capacidad <- airbnb_precio |>
   group_by(accommodates) |>
   summarise(
@@ -95,9 +85,7 @@ precio_capacidad <- airbnb_precio |>
   ) |>
   arrange(accommodates)
 
-# -----------------------------------------------------------------------------
-# TIPO DE ANFITRIÓN
-# -----------------------------------------------------------------------------
+# TIPO ANFFITRION
 airbnb_hosts <- airbnb_precio |>
   mutate(
     tipo_anfitrion = if_else(
@@ -117,15 +105,13 @@ comparacion_hosts <- airbnb_hosts |>
     .groups = "drop"
   )
 
-# -----------------------------------------------------------------------------
 # MAPA
-# -----------------------------------------------------------------------------
 airbnb_mapa <- airbnb_sel |>
   filter(!is.na(latitude), !is.na(longitude))
 
-# -----------------------------------------------------------------------------
+
 # PERFILES DE ALOJAMIENTO (PCA + K-MEANS)
-# -----------------------------------------------------------------------------
+
 airbnb_cluster <- airbnb_precio |>
   select(id, price, accommodates, bedrooms, bathrooms, beds, availability_365) |>
   drop_na()
@@ -151,9 +137,7 @@ etiquetas_cluster <- c(
   "3" = "Capacidad intermedia"
 )
 
-# -----------------------------------------------------------------------------
 # MODELO DE PRECIO (REGRESIÓN LINEAL SOBRE LOG-PRECIO)
-# -----------------------------------------------------------------------------
 datos_regresion <- airbnb_sel |>
   select(
     price, accommodates, bedrooms, bathrooms, beds, room_type,
@@ -205,18 +189,16 @@ efectos_modelo <- tibble(
 ) |>
   mutate(cambio_porcentual = 100 * (exp(beta) - 1))
 
-# -----------------------------------------------------------------------------
 # PALETA DE COLORES
-# -----------------------------------------------------------------------------
-# azul = información principal; naranja = énfasis puntual; gris = apoyo.
+
+# azul = información principal naranja = efasis gris = apoyo.
 azul       <- "#2780E3"
 naranja    <- "#F39C12"
 gris       <- "#6C757D"
 azul_claro <- "#EAF3FC"
 
-# -----------------------------------------------------------------------------
 # TEMA GRÁFICO
-# -----------------------------------------------------------------------------
+
 tema_dashboard <- theme_minimal(base_size = 12) +
   theme(
     plot.title = element_text(face = "bold", size = 13, margin = margin(b = 5)),
@@ -229,9 +211,7 @@ tema_dashboard <- theme_minimal(base_size = 12) +
   )
 ```
 
-# Resumen ejecutivo
 
-## Row
 
 ### Alojamientos analizados
 
@@ -319,11 +299,9 @@ ggplotly(
 
 ## Row
 
-### Lectura ejecutiva
 
-> **Lectura en 20 segundos.** `r alcaldia_top$neighbourhood_cleansed[1]` concentra la mayor oferta, con más de `r comma(alcaldia_top$alojamientos[1])` alojamientos. Las tres alcaldías principales reúnen el `r round(kpi_top3_pct, 1)`% de la oferta total. El precio mediano general es de $`r comma(kpi_precio_mediano)` MXN por noche, y cerca del `r round(kpi_multi_host * 100)`% de los anuncios pertenece a anfitriones que administran más de una propiedad.
+> `r alcaldia_top$neighbourhood_cleansed[1]` concentra la mayor oferta, con más de `r comma(alcaldia_top$alojamientos[1])` alojamientos. Las tres alcaldías principales reúnen el `r round(kpi_top3_pct, 1)`% de la oferta total. El precio mediano general es de $`r comma(kpi_precio_mediano)` MXN por noche, y cerca del `r round(kpi_multi_host * 100)`% de los anuncios pertenece a anfitriones que administran más de una propiedad.
 
-# Diagnóstico operativo
 
 ## Row
 
@@ -404,13 +382,7 @@ ggplotly(
 )
 ```
 
-### ¿Por qué estas dos vistas?
 
-Estas comparaciones son diagnósticos de segundo nivel: ayudan a explicar **por qué** varía el precio observado en el resumen ejecutivo (tipo de anfitrión, ubicación), pero no son la primera lectura del dashboard.
-
-# Perfiles y modelo
-
-## Row
 
 ### Tres perfiles de alojamiento {data-width=650}
 
@@ -504,33 +476,4 @@ airbnb_precio |>
   )
 ```
 
-### Cierre
-
-Esta página concentra el detalle geográfico y la consulta libre de anuncios individuales: información útil para explorar, pero que no compite por atención con el resumen ejecutivo.
-
-# Justificación del diseño
-
 ## Row
-
-### ¿Por qué este orden de páginas?
-
-El dashboard sigue el mismo flujo visto en clase: **resumen ejecutivo → diagnóstico → perfiles y modelo → exploración**. La primera página debe entenderse en segundos, sin leer texto adicional; las siguientes existen únicamente para responder "¿por qué?" a lo que ya se observó en la primera.
-
-- **Resumen ejecutivo**: solo 4 KPIs y 2 gráficas. El objetivo es que cualquier persona identifique, de un vistazo, dónde se concentra la oferta y cuál es el precio típico.
-- **Diagnóstico operativo**: aquí se explica el precio observado en la primera página (tipo de alojamiento, capacidad, anfitrión, alcaldía), no se introduce información nueva sin conexión con el resumen.
-- **Perfiles y modelo**: se deja para la tercera página porque requiere más contexto (PCA, K-means, regresión) — no es información que alguien necesite en los primeros 10 segundos.
-- **Exploración**: el mapa y la tabla de consulta van al final porque son para quien quiera profundizar caso por caso, no para la lectura general del dashboard.
-
-### ¿Por qué estas gráficas y no otras?
-
-- **Barras horizontales** para alcaldías y tipo de alojamiento: son categorías con nombres largos: las barras horizontales evitan etiquetas rotadas e ilegibles.
-- **Escala logarítmica** en el precio por tipo de alojamiento: el precio tiene una cola muy larga (alojamientos de lujo); sin escala log, los boxplots de la mayoría de los alojamientos se verían aplastados.
-- **Línea, no barras**, para precio vs. capacidad: lo que importa comunicar es la *tendencia* creciente, no comparar categorías independientes.
-- **Dispersión de PCA coloreada por cluster**, en vez de una tabla de perfiles: permite ver de un vistazo qué tan bien separados están los tres perfiles y a lo largo de qué dimensión (tamaño vs. disponibilidad).
-- **Mapa con clustering de marcadores**, no un mapa de calor: con más de 20 mil puntos, el clustering evita saturar el mapa y aun así deja ver la concentración real en el centro de la ciudad.
-
-### Qué decidimos no mostrar
-
-- No se incluyó una tabla cruda en el resumen ejecutivo: las tablas se reservaron para la página de exploración.
-- No se pusieron más de 4 KPIs en la primera página, para no diluir cuál es el valor realmente importante.
-- No se muestra el R² de entrenamiento junto al de prueba en un KPI: se prioriza el de prueba porque es el que refleja el desempeño real del modelo sobre datos no vistos.
