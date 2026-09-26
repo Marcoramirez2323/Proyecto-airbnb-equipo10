@@ -1,0 +1,1147 @@
+---
+title: "Análisis de precios y distribución territorial de alojamientos Airbnb en la Ciudad de México"
+author: "David López Sánchez"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+# Introducción
+
+En los últimos años, las plataformas digitales de alojamiento han adquirido una presencia importante dentro del mercado turístico y de hospedaje de las grandes ciudades. Entre ellas, Airbnb permite que propietarios y administradores ofrezcan distintos tipos de alojamiento, desde habitaciones privadas hasta viviendas completas, generando una oferta heterogénea en términos de precio, ubicación, capacidad, disponibilidad y características del inmueble.
+
+La Ciudad de México representa un caso de interés para analizar este fenómeno debido a su extensión territorial, diversidad urbana y actividad turística. La distribución de los alojamientos dentro de la ciudad puede presentar diferencias importantes entre zonas, tanto en la concentración de propiedades como en los precios ofrecidos.
+
+En este proyecto se analizarán datos de alojamientos publicados en Airbnb para la Ciudad de México, obtenidos a través de Inside Airbnb. El análisis se enfocará principalmente en estudiar la relación entre las características de los alojamientos, su ubicación geográfica y el precio por noche.
+
+Para ello, se utilizarán técnicas de análisis exploratorio de datos, visualización, análisis geoespacial y aprendizaje estadístico. Adicionalmente, se explorará la existencia de distintos perfiles de alojamientos mediante técnicas de agrupamiento.  
+
+
+# Planteamiento del problema
+
+El precio de un alojamiento ofrecido mediante Airbnb puede estar relacionado con múltiples características, entre ellas el tipo de alojamiento, su capacidad, el número de habitaciones y baños, la ubicación, la disponibilidad, el número de reseñas y las características del anfitrión.
+
+Además de las características propias de cada alojamiento, la ubicación geográfica puede desempeñar un papel importante en la conformación de los precios. La oferta de alojamientos puede concentrarse en determinadas zonas de la Ciudad de México y presentar diferencias territoriales tanto en el número de propiedades disponibles como en los precios por noche.
+
+En este contexto, resulta de interés analizar cuáles son las características que presentan una mayor relación con el precio de los alojamientos y determinar si existen patrones espaciales en la distribución de la oferta.
+
+A partir de este problema se plantea la siguiente pregunta principal de investigación:
+
+**¿Qué características de los alojamientos y de su ubicación están relacionadas con el precio por noche de los Airbnb en la Ciudad de México?**
+
+De manera complementaria, se analizará si existen concentraciones territoriales de alojamientos, diferencias entre tipos de anfitriones y distintos perfiles de propiedades dentro de la plataforma.
+
+# Justificación
+
+El análisis de los alojamientos ofrecidos mediante Airbnb permite estudiar un fenómeno urbano a partir de información real que integra características de las propiedades, precios, disponibilidad, reseñas, anfitriones y ubicación geográfica.
+
+Desde la perspectiva de la ciencia de datos, este problema ofrece la posibilidad de aplicar diferentes técnicas estadísticas y computacionales. El análisis exploratorio permitirá conocer la estructura de los datos, identificar valores atípicos, estudiar la distribución de las principales variables y analizar posibles relaciones entre las características de los alojamientos.
+
+Asimismo, el componente geoespacial permitirá estudiar la distribución territorial de la oferta de Airbnb en la Ciudad de México e identificar posibles zonas de concentración y diferencias en los precios entre distintas áreas de la ciudad.
+
+Finalmente, la aplicación de modelos estadísticos y técnicas de aprendizaje automático permitirá analizar qué características están asociadas con el precio de los alojamientos, así como explorar la existencia de diferentes perfiles de propiedades.
+
+De esta manera, el proyecto permitirá integrar herramientas de limpieza, visualización, análisis estadístico, análisis espacial y modelado utilizando el lenguaje de programación R.
+
+
+# Objetivos
+
+## Objetivo general
+
+Analizar las características, precios y distribución territorial de los alojamientos Airbnb en la Ciudad de México mediante técnicas de análisis exploratorio, análisis geoespacial y aprendizaje estadístico, con el propósito de identificar las variables asociadas con el precio por noche y los patrones presentes en la oferta de alojamientos.
+
+## Objetivos específicos
+
+1. Describir las principales características de los alojamientos Airbnb disponibles en la Ciudad de México y analizar la distribución de sus precios.
+
+2. Identificar las características de los alojamientos que presentan una mayor relación con el precio por noche y construir modelos de regresión que permitan evaluar dicha relación.
+
+3. Analizar la distribución geográfica de los alojamientos e identificar diferencias en los precios y en la concentración de la oferta entre distintas zonas de la Ciudad de México.
+
+4. Comparar las características de los alojamientos administrados por anfitriones con una sola propiedad y aquellos administrados por anfitriones con múltiples propiedades.
+
+5. Identificar distintos perfiles de alojamientos a partir de sus características mediante técnicas de agrupamiento o *clustering*.
+
+
+# Preguntas de investigación
+
+La investigación estará orientada por la siguiente pregunta principal:
+
+**¿Qué características de los alojamientos y de su ubicación están relacionadas con el precio por noche de los Airbnb en la Ciudad de México?**
+
+A partir de esta pregunta principal se plantean las siguientes preguntas específicas:
+
+1. ¿Qué características de los alojamientos presentan una mayor relación con el precio por noche?
+
+2. ¿Existen diferencias en los precios y en la concentración de alojamientos entre distintas zonas de la Ciudad de México?
+
+3. ¿Existen diferencias entre los alojamientos administrados por anfitriones con una sola propiedad y aquellos administrados por anfitriones con múltiples propiedades?
+
+4. ¿Es posible identificar distintos perfiles de alojamientos a partir de sus características?
+
+# Hipótesis de trabajo
+
+A partir de las preguntas de investigación planteadas, se establecen las siguientes hipótesis de trabajo:
+
+**H1.** Las características relacionadas con el tamaño y capacidad del alojamiento, así como el tipo de propiedad y de habitación, presentan una relación con el precio por noche.
+
+**H2.** La ubicación geográfica está asociada con diferencias en los precios y en la concentración de alojamientos entre distintas zonas de la Ciudad de México.
+
+**H3.** Los alojamientos administrados por anfitriones con múltiples propiedades presentan diferencias en precio, disponibilidad y otras características respecto a aquellos administrados por anfitriones con una sola propiedad.
+
+**H4.** Es posible identificar distintos perfiles de alojamientos Airbnb a partir de características como precio, capacidad, tipo de alojamiento, disponibilidad y número de reseñas mediante técnicas de agrupamiento.
+
+
+# Datos y metodología
+
+## Fuente de datos
+
+Los datos utilizados en este proyecto provienen de **Inside Airbnb**, una iniciativa que recopila y publica información sobre los alojamientos anunciados en Airbnb en distintas ciudades del mundo.
+
+Para este análisis se utilizarán los datos correspondientes a la **Ciudad de México**. La información disponible permite analizar diferentes características de los alojamientos, incluyendo su ubicación geográfica, precio, tipo de alojamiento, capacidad, disponibilidad, reseñas y características de los anfitriones.
+
+La base principal del análisis será el archivo de listados detallados (`listings.csv.gz`), el cual contiene información a nivel de alojamiento. Posteriormente, en caso de ser necesario, se podrán incorporar otras bases disponibles, como información de disponibilidad temporal o límites geográficos de los barrios.
+
+Antes de realizar los análisis estadísticos y construir los modelos, se llevará a cabo un proceso de exploración, limpieza y transformación de los datos con el objetivo de identificar valores faltantes, registros atípicos, variables relevantes y posibles problemas de calidad de la información.
+
+
+## Preparación del entorno
+
+Para el procesamiento, exploración y limpieza inicial de los datos se utilizarán distintos paquetes del lenguaje R.
+
+```{r librerias}
+library(tidyverse)
+library(janitor)
+library(skimr)
+library(corrplot)
+library(sf)
+library(leaflet)
+```
+
+## Carga de los datos
+
+Se carga la base de datos detallada de alojamientos de Airbnb correspondiente a la Ciudad de México.
+
+```{r carga-datos}
+airbnb <- read_csv("data/listings.csv.gz")
+```
+
+## Exploración inicial de los datos
+
+Como primer paso, se examinan las dimensiones de la base de datos con el objetivo de conocer el número de observaciones y variables disponibles.
+
+```{r dimensiones}
+dim(airbnb)
+```
+
+La base de datos está conformada por **31,430 observaciones y 90 variables**. Cada observación corresponde a un registro de alojamiento incluido en la base de Inside Airbnb, mientras que las variables contienen información relacionada con las características de las propiedades, los anfitriones, precios, disponibilidad, reseñas y ubicación, entre otros atributos.
+
+El número de variables disponibles hace necesario realizar una exploración inicial para identificar aquellas que resulten relevantes para los objetivos planteados en el proyecto.
+
+
+### Variables disponibles
+
+A continuación, se examinan los nombres de las variables contenidas en la base de datos.
+
+```{r nombres-variables}
+names(airbnb)
+```
+
+### Estructura de los datos
+
+Además de identificar las variables disponibles, se examina la estructura de la base de datos para conocer el tipo de información almacenada en cada una de ellas.
+
+```{r estructura-datos}
+glimpse(airbnb)
+```
+
+### Selección inicial de variables
+
+Debido al número de variables disponibles en la base original, se realiza una selección inicial de aquellas que presentan mayor relevancia para los objetivos y preguntas de investigación del proyecto. La base original se conserva sin modificaciones para permitir la incorporación posterior de otras variables en caso de ser necesario.
+
+```{r seleccion-variables}
+airbnb_sel <- airbnb %>%
+  select(
+    id,
+    host_id,
+    host_is_superhost,
+    host_listings_count,
+    calculated_host_listings_count,
+    neighbourhood_cleansed,
+    latitude,
+    longitude,
+    property_type,
+    room_type,
+    accommodates,
+    bathrooms,
+    bedrooms,
+    beds,
+    price,
+    minimum_nights,
+    maximum_nights,
+    availability_30,
+    availability_365,
+    number_of_reviews,
+    reviews_per_month,
+    review_scores_rating
+  )
+```
+
+### Verificación de las variables seleccionadas
+
+Una vez realizada la selección, se verifican las dimensiones de la nueva base de datos.
+
+```{r dimensiones-seleccion}
+dim(airbnb_sel)
+```
+La base de trabajo conserva las **31,430 observaciones** originales y contiene **22 variables seleccionadas** de acuerdo con los objetivos del proyecto. Esta reducción permite enfocar el análisis en las características relacionadas con los alojamientos, anfitriones, ubicación, precio, disponibilidad y reseñas, manteniendo la base original sin modificaciones.
+
+
+### Análisis de valores faltantes
+
+Antes de realizar la limpieza y transformación de los datos, se analiza la presencia de valores faltantes en las variables seleccionadas.
+
+```{r valores-faltantes, echo=FALSE}
+faltantes <- airbnb_sel %>%
+  summarise(across(everything(), ~ sum(is.na(.)))) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "valores_faltantes"
+  ) %>%
+  mutate(
+    porcentaje_faltante = round(
+      valores_faltantes / nrow(airbnb_sel) * 100,
+      2
+    )
+  ) %>%
+  arrange(desc(valores_faltantes))
+
+faltantes
+```
+
+El análisis de valores faltantes muestra que su presencia no es uniforme entre las variables seleccionadas. Las mayores proporciones se encuentran en `reviews_per_month` y `review_scores_rating`, ambas con **17.50%** de valores faltantes, seguidas por `bedrooms` con **16.98%**, `bathrooms` con **11.25%**, `beds` con **7.30%** y `price` con **5.70%**.
+
+En contraste, variables fundamentales para el análisis territorial, como la zona, latitud y longitud, no presentan valores faltantes. Otras variables, como el número mínimo y máximo de noches y algunas características del anfitrión, presentan porcentajes de datos faltantes inferiores al 0.1%.
+
+Debido a que la ausencia de información puede tener diferentes causas dependiendo de la variable, los registros con valores faltantes no serán eliminados de manera general. Su tratamiento se determinará posteriormente de acuerdo con el tipo de variable y el análisis en el que sea utilizada.
+
+### Verificación de registros duplicados
+
+Se verifica si existen registros duplicados a partir del identificador único de cada alojamiento (`id`).
+
+```{r duplicados}
+airbnb_sel %>%
+  summarise(
+    total_registros = n(),
+    ids_unicos = n_distinct(id),
+    registros_duplicados = n() - n_distinct(id)
+  )
+```
+
+La verificación del identificador `id` mostró que los **31,430 registros corresponden a 31,430 identificadores únicos**, por lo que no se detectaron alojamientos duplicados en la base de trabajo. En consecuencia, no fue necesario eliminar registros por duplicidad.
+
+# Limpieza y transformación de los datos
+
+## Transformación de la variable precio
+
+La variable `price`, que representa el precio por noche del alojamiento, fue importada como una variable de texto debido a la presencia del símbolo monetario y separadores de miles. Por esta razón, se transforma a formato numérico para permitir su análisis estadístico.
+
+```{r transformacion-precio}
+airbnb_sel <- airbnb_sel %>%
+  mutate(
+    price = parse_number(price)
+  )
+```
+
+```{r verificar-precio}
+class(airbnb_sel$price)
+```
+
+### Exploración inicial del precio
+
+Una vez transformada la variable `price` a formato numérico, se examinan sus principales medidas descriptivas antes de realizar cualquier tratamiento de valores faltantes o atípicos.
+
+```{r resumen-precio}
+summary(airbnb_sel$price)
+```
+
+### Distribución del precio
+
+Con el objetivo de identificar posibles valores extremos y conocer la forma de la distribución de los precios, se construye un diagrama de caja.
+
+```{r boxplot-precio}
+ggplot(airbnb_sel, aes(y = price)) +
+  geom_boxplot() +
+  labs(
+    title = "Distribución del precio por noche",
+    y = "Precio por noche (MXN)",
+    x = NULL
+  ) +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal()
+```
+
+### Identificación de valores atípicos en el precio
+
+Debido a la presencia de precios considerablemente superiores al resto de las observaciones, se utiliza el rango intercuartílico (IQR) como criterio inicial para identificar posibles valores atípicos.
+
+```{r outliers-precio}
+Q1 <- quantile(airbnb_sel$price, 0.25, na.rm = TRUE)
+Q3 <- quantile(airbnb_sel$price, 0.75, na.rm = TRUE)
+
+IQR_precio <- IQR(airbnb_sel$price, na.rm = TRUE)
+
+limite_inferior <- Q1 - 1.5 * IQR_precio
+limite_superior <- Q3 + 1.5 * IQR_precio
+
+c(
+  Q1 = Q1,
+  Q3 = Q3,
+  IQR = IQR_precio,
+  limite_inferior = limite_inferior,
+  limite_superior = limite_superior
+)
+```
+
+```{r cantidad-outliers-precio}
+airbnb_sel %>%
+  summarise(
+    precios_validos = sum(!is.na(price)),
+    outliers_superiores = sum(price > limite_superior, na.rm = TRUE),
+    porcentaje_outliers = round(
+      outliers_superiores / sum(!is.na(price)) * 100,
+      2
+    )
+  )
+```
+
+### Análisis de los precios extremos
+
+Debido a que el criterio del rango intercuartílico identifica como potencialmente atípico al 8.3% de los alojamientos con precio disponible, se examinan los percentiles superiores de la distribución antes de establecer un criterio de tratamiento.
+
+```{r percentiles-precio}
+quantile(
+  airbnb_sel$price,
+  probs = c(0.90, 0.95, 0.99, 0.995, 0.999, 1),
+  na.rm = TRUE
+)
+```
+
+### Revisión de los precios más elevados
+
+Con el objetivo de evaluar la naturaleza de los valores extremos, se examinan los alojamientos con los precios por noche más elevados antes de establecer algún criterio de exclusión.
+
+```{r precios-extremos}
+airbnb_sel %>%
+  filter(!is.na(price)) %>%
+  arrange(desc(price)) %>%
+  select(
+    id,
+    neighbourhood_cleansed,
+    property_type,
+    room_type,
+    accommodates,
+    bedrooms,
+    bathrooms,
+    price
+  ) %>%
+  slice_head(n = 15)
+```
+
+### Distribución de los precios elevados
+
+Para evaluar la magnitud de los valores extremos, se contabiliza el número de alojamientos que supera distintos niveles de precio.
+
+```{r rangos-precios-extremos}
+airbnb_sel %>%
+  summarise(
+    mayor_10000 = sum(price > 10000, na.rm = TRUE),
+    mayor_20000 = sum(price > 20000, na.rm = TRUE),
+    mayor_50000 = sum(price > 50000, na.rm = TRUE),
+    mayor_100000 = sum(price > 100000, na.rm = TRUE)
+  )
+```
+### Visualización del precio en escala logarítmica
+
+Debido a la fuerte asimetría de la distribución y a la presencia de valores extremadamente altos, se utiliza una escala logarítmica para facilitar la visualización de los precios sin eliminar observaciones.
+
+```{r boxplot-precio-log}
+ggplot(
+  airbnb_sel %>% filter(!is.na(price), price > 0),
+  aes(y = price)
+) +
+  geom_boxplot() +
+  scale_y_log10(labels = scales::comma) +
+  labs(
+    title = "Distribución del precio por noche en escala logarítmica",
+    y = "Precio por noche (MXN, escala logarítmica)",
+    x = NULL
+  ) +
+  theme_minimal()
+```
+
+La transformación de la escala permite observar con mayor claridad la distribución de los precios. La mayor parte de los alojamientos se concentra en un intervalo relativamente reducido, mientras que se observa una cola superior compuesta por alojamientos con precios considerablemente más elevados. Debido a que estos valores pueden corresponder tanto a propiedades de características particulares como a posibles anomalías, se decidió no eliminarlos automáticamente únicamente con base en el c  riterio del rango intercuartílico.
+
+
+
+## Preparación de la base para el análisis de precios
+
+Para los análisis en los que el precio constituye la variable de interés, se excluyen los registros que no cuentan con información disponible en `price`. La base general se conserva sin modificaciones para aquellos análisis en los que el precio no sea necesario.
+
+```{r base-precios}
+airbnb_precio <- airbnb_sel %>%
+  filter(!is.na(price), price > 0)
+```
+
+# Análisis exploratorio de datos
+
+## Distribución del precio por noche
+
+Como primera aproximación, se analiza la distribución de los precios por noche de los alojamientos. Debido a la presencia de valores extremos, se utilizan medidas estadísticas robustas como la mediana y los cuartiles para complementar el análisis de la media.
+
+
+```{r estadisticas-precio}
+airbnb_precio %>%
+  summarise(
+    alojamientos = n(),
+    media = mean(price),
+    mediana = median(price),
+    primer_cuartil = quantile(price, 0.25),
+    tercer_cuartil = quantile(price, 0.75)
+  )
+```
+
+Los alojamientos con información disponible de precio presentan un valor medio de **$2,913.69 MXN por noche**, mientras que la mediana es de **$1,756 MXN**. La diferencia entre ambas medidas indica una distribución asimétrica hacia la derecha, en la que un grupo relativamente reducido de alojamientos con precios elevados incrementa considerablemente el valor de la media.
+
+El 50% central de los alojamientos presenta precios entre **$1,073 MXN y $2,853 MXN por noche**. En este contexto, la mediana resulta una medida más representativa del precio típico de los alojamientos que la media, debido a su menor sensibilidad frente a valores extremos.
+
+
+## Tipo de alojamiento
+
+Se analiza la composición de la oferta de Airbnb de acuerdo con el tipo de alojamiento disponible.
+
+```{r distribucion-room-type}
+tabla_room_type <- airbnb_precio %>%
+  count(room_type) %>%
+  mutate(
+    porcentaje = round(n / sum(n) * 100, 2)
+  ) %>%
+  arrange(desc(n))
+
+tabla_room_type
+```
+La oferta de Airbnb analizada se concentra principalmente en alojamientos completos (`Entire home/apt`), que representan el **67.00%** de los registros con precio disponible. Las habitaciones privadas (`Private room`) constituyen el **31.74%**, mientras que las habitaciones compartidas y habitaciones de hotel presentan una participación considerablemente menor, con **0.98%** y **0.28%**, respectivamente.
+
+Estos resultados muestran que aproximadamente dos de cada tres alojamientos corresponden a propiedades completas, lo que evidencia una mayor presencia de este tipo de oferta frente a modalidades basadas en habitaciones individuales o compartidas.
+
+### Precio según tipo de alojamiento
+
+Para evaluar las diferencias de precio entre los distintos tipos de alojamiento, se comparan la media, mediana y rango intercuartílico de los precios por noche.
+
+```{r precio-room-type}
+precio_room_type <- airbnb_precio %>%
+  group_by(room_type) %>%
+  summarise(
+    alojamientos = n(),
+    media = round(mean(price), 2),
+    mediana = round(median(price), 2),
+    Q1 = round(quantile(price, 0.25), 2),
+    Q3 = round(quantile(price, 0.75), 2)
+  ) %>%
+  arrange(desc(mediana))
+
+precio_room_type
+```
+
+Los precios presentan diferencias importantes según el tipo de alojamiento. Las habitaciones de hotel registran la mediana más elevada, con **$3,132 MXN por noche**, seguidas por los alojamientos completos (`Entire home/apt`), con una mediana de **$2,163 MXN**. En contraste, las habitaciones privadas presentan una mediana de **$970 MXN**, mientras que las habitaciones compartidas registran el menor valor, con **$503 MXN por noche**.
+
+En todas las categorías, la media es superior a la mediana, lo que refleja la influencia de alojamientos con precios elevados. Esta diferencia es particularmente notable en las habitaciones de hotel, cuya media alcanza **$7,594.79 MXN**, frente a una mediana de $3,132 MXN.
+
+En términos descriptivos, estos resultados sugieren una relación entre el tipo de alojamiento y el nivel de precios, aunque posteriormente será necesario considerar simultáneamente otras características mediante el modelado estadístico.
+
+```{r grafica-precio-room-type}
+ggplot(
+  airbnb_precio,
+  aes(x = room_type, y = price)
+) +
+  geom_boxplot() +
+  scale_y_log10(labels = scales::comma) +
+  labs(
+    title = "Distribución del precio según tipo de alojamiento",
+    x = "Tipo de alojamiento",
+    y = "Precio por noche (MXN, escala logarítmica)"
+  ) +
+  theme_minimal()
+```
+
+
+## Capacidad del alojamiento y precio
+
+La capacidad máxima de huéspedes constituye otra característica que puede estar relacionada con el precio. Se analiza el comportamiento del precio según el número de personas que puede alojar cada propiedad.
+
+```{r precio-capacidad}
+precio_capacidad <- airbnb_precio %>%
+  group_by(accommodates) %>%
+  summarise(
+    alojamientos = n(),
+    mediana_precio = round(median(price), 2),
+    .groups = "drop"
+  ) %>%
+  arrange(accommodates)
+
+precio_capacidad
+```
+
+
+```{r grafica-precio-capacidad}
+ggplot(
+  precio_capacidad,
+  aes(x = accommodates, y = mediana_precio)
+) +
+  geom_line() +
+  geom_point() +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_continuous(breaks = precio_capacidad$accommodates) +
+  labs(
+    title = "Precio mediano según capacidad del alojamiento",
+    x = "Número de huéspedes",
+    y = "Precio mediano por noche (MXN)"
+  ) +
+  theme_minimal()
+```
+
+Se observa una tendencia positiva entre la capacidad del alojamiento y el precio por noche. Los alojamientos con capacidad para una persona presentan una mediana de **$685 MXN**, mientras que para capacidades de 4 y 6 huéspedes la mediana aumenta a **$2,214 MXN** y **$3,081.50 MXN**, respectivamente.
+
+En términos generales, el precio mediano aumenta conforme se incrementa la capacidad del alojamiento. Sin embargo, para las capacidades más elevadas se observan mayores fluctuaciones, las cuales deben interpretarse con cautela debido al menor número de alojamientos disponibles en estas categorías.
+
+En términos descriptivos, los resultados sugieren una asociación positiva entre la capacidad del alojamiento y su precio por noche. Esta relación será evaluada posteriormente junto con otras características mediante el modelo de regresión.
+
+
+## Relación entre características numéricas
+
+Para explorar conjuntamente la relación entre el precio y algunas características físicas de los alojamientos, se calcula una matriz de correlaciones entre el precio, la capacidad, el número de habitaciones, baños y camas.
+
+
+```{r correlaciones, include=FALSE}
+variables_cor <- airbnb_precio %>%
+  select(
+    price,
+    accommodates,
+    bedrooms,
+    bathrooms,
+    beds
+  )
+
+matriz_cor <- cor(
+  variables_cor,
+  use = "pairwise.complete.obs"
+)
+```
+
+```{r grafica-correlaciones, echo=FALSE, fig.width=7, fig.height=6}
+corrplot(
+  matriz_cor,
+  method = "color",
+  type = "upper",
+  addCoef.col = "black",
+  tl.col = "black",
+  tl.srt = 45,
+  diag = FALSE,
+  number.cex = 0.8
+)
+```
+
+Las características físicas consideradas presentan asociaciones positivas con el precio, aunque las correlaciones lineales son relativamente bajas. El número de habitaciones (`bedrooms`) presenta la mayor correlación con el precio (**0.28**), seguido por la capacidad máxima de huéspedes (**0.19**), el número de baños (**0.18**) y el número de camas (**0.18**).
+
+Por otra parte, se observan correlaciones elevadas entre algunas características del propio alojamiento, particularmente entre habitaciones y camas (**0.80**), capacidad y camas (**0.77**) y habitaciones y baños (**0.74**). Estas relaciones serán consideradas posteriormente durante la construcción del modelo de regresión, debido a la posible presencia de multicolinealidad.
+
+
+## Distribución territorial de los alojamientos
+
+Para analizar la distribución territorial de la oferta de Airbnb en la Ciudad de México, se examina inicialmente el número de alojamientos registrados en cada alcaldía.
+
+```{r alojamientos-alcaldia, include=FALSE}
+tabla_alcaldias <- airbnb_sel %>%
+  count(neighbourhood_cleansed, name = "alojamientos") %>%
+  mutate(
+    porcentaje = round(alojamientos / sum(alojamientos) * 100, 2)
+  ) %>%
+  arrange(desc(alojamientos))
+```
+
+```{r grafica-alcaldias, echo=FALSE, fig.width=9, fig.height=6}
+ggplot(
+  tabla_alcaldias,
+  aes(
+    x = reorder(neighbourhood_cleansed, alojamientos),
+    y = alojamientos
+  )
+) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    title = "Distribución de alojamientos Airbnb por alcaldía",
+    x = "Alcaldía",
+    y = "Número de alojamientos"
+  ) +
+  theme_minimal()
+```
+
+
+La distribución territorial de los alojamientos Airbnb presenta una concentración considerable en determinadas alcaldías de la Ciudad de México. **Cuauhtémoc concentra el 45.97% de los alojamientos**, seguida por **Miguel Hidalgo con 15.49%** y **Benito Juárez con 11.53%**. En conjunto, estas tres alcaldías representan aproximadamente el **73% de la oferta analizada**.
+
+En contraste, alcaldías como Milpa Alta, Tláhuac y La Magdalena Contreras presentan una participación considerablemente menor. Estos resultados evidencian que la oferta de Airbnb no se distribuye uniformemente en el territorio de la Ciudad de México, sino que se concentra principalmente en determinadas zonas.
+
+```{r precio-alcaldia, include=FALSE}
+precio_alcaldia <- airbnb_precio %>%
+  group_by(neighbourhood_cleansed) %>%
+  summarise(
+    alojamientos = n(),
+    precio_mediano = median(price),
+    precio_medio = mean(price),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(precio_mediano))
+```
+
+```{r grafica-precio-alcaldia, echo=FALSE, fig.width=9, fig.height=6}
+ggplot(
+  precio_alcaldia,
+  aes(
+    x = reorder(neighbourhood_cleansed, precio_mediano),
+    y = precio_mediano
+  )
+) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(
+    labels = scales::comma
+  ) +
+  labs(
+    title = "Precio mediano por noche según alcaldía",
+    x = "Alcaldía",
+    y = "Precio mediano por noche (MXN)"
+  ) +
+  theme_minimal()
+```
+
+El precio de los alojamientos también presenta diferencias importantes entre alcaldías. **Miguel Hidalgo registra el mayor precio mediano, con aproximadamente $2,212 MXN por noche**, seguida por **Cuajimalpa de Morelos ($2,014 MXN)** y **Cuauhtémoc ($1,979 MXN)**. En contraste, las menores medianas se observan en **Tláhuac ($628 MXN)**, **Milpa Alta ($824 MXN)** y **Gustavo A. Madero ($856 MXN)**.
+
+Al comparar estos resultados con la distribución territorial de la oferta, se observa que una mayor concentración de alojamientos no implica necesariamente un mayor precio. Cuauhtémoc concentra casi la mitad de la oferta y presenta precios relativamente elevados, mientras que Miguel Hidalgo registra la mediana más alta. Por su parte, Cuajimalpa de Morelos presenta una oferta considerablemente menor, pero el segundo precio mediano más elevado.
+
+Estos resultados sugieren que la ubicación territorial está asociada con diferencias en los niveles de precio de los alojamientos, aspecto que será considerado posteriormente en el modelado.
+
+
+```{r preparar-mapa, include=FALSE}
+airbnb_mapa <- airbnb_sel %>%
+  filter(
+    !is.na(latitude),
+    !is.na(longitude)
+  )
+```
+
+### Distribución espacial de los alojamientos
+
+El siguiente mapa permite visualizar la localización de los alojamientos y explorar su concentración espacial dentro de la Ciudad de México. Los puntos cercanos se agrupan para facilitar la visualización de zonas con una mayor presencia de alojamientos.
+
+```{r mapa-airbnb, echo=FALSE}
+leaflet(airbnb_mapa) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircleMarkers(
+    lng = ~longitude,
+    lat = ~latitude,
+    radius = 2,
+    stroke = FALSE,
+    fillOpacity = 0.5,
+    clusterOptions = markerClusterOptions()
+  )
+```
+
+
+La distribución espacial muestra una concentración marcada de alojamientos Airbnb en la zona central de la Ciudad de México. Los agrupamientos de mayor tamaño se localizan principalmente en las áreas centrales, mientras que hacia las zonas periféricas la densidad de alojamientos disminuye considerablemente.
+
+Este patrón es consistente con el análisis por alcaldía, en el que Cuauhtémoc, Miguel Hidalgo y Benito Juárez concentran la mayor parte de la oferta. El mapa permite observar, además, que la concentración no es homogénea dentro del territorio, sino que existen núcleos específicos con una presencia particularmente elevada de alojamientos.
+
+
+```{r clasificacion-anfitrion, include=FALSE}
+airbnb_hosts <- airbnb_sel %>%
+  mutate(
+    tipo_anfitrion = if_else(
+      calculated_host_listings_count == 1,
+      "Un solo alojamiento",
+      "Múltiples alojamientos"
+    )
+  )
+```
+
+
+```{r comparacion-anfitriones, include=FALSE}
+comparacion_hosts <- airbnb_hosts %>%
+  group_by(tipo_anfitrion) %>%
+  summarise(
+    anuncios = n(),
+    precio_mediano = median(price, na.rm = TRUE),
+    disponibilidad_mediana = median(availability_365, na.rm = TRUE),
+    resenas_mediana = median(number_of_reviews, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+comparacion_hosts
+```
+
+## Diferencias según el tipo de anfitrión
+
+Se comparan los anuncios pertenecientes a anfitriones con un único alojamiento y aquellos asociados a anfitriones que administran múltiples alojamientos. La clasificación se realiza a partir de `calculated_host_listings_count`.
+
+```{r grafica-disponibilidad-host, echo=FALSE, fig.width=7, fig.height=5}
+comparacion_hosts %>%
+  ggplot(
+    aes(
+      x = tipo_anfitrion,
+      y = disponibilidad_mediana
+    )
+  ) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0(disponibilidad_mediana, " días")),
+    vjust = -0.5
+  ) +
+  labs(
+    title = "Disponibilidad anual según tipo de anfitrión",
+    x = "Tipo de anfitrión",
+    y = "Disponibilidad mediana (días al año)"
+  ) +
+  ylim(0, 365) +
+  theme_minimal()
+```
+
+El **68.6% de los anuncios** pertenece a anfitriones que administran múltiples alojamientos, mientras que el **31.4%** corresponde a anfitriones con un único alojamiento. Esta proporción se refiere a los anuncios publicados y no a la proporción de anfitriones individuales.
+
+El precio mediano es similar entre ambos grupos: **$1,746 MXN** para los anuncios de anfitriones con múltiples alojamientos y **$1,775 MXN** para aquellos con un único alojamiento. En contraste, se observa una diferencia mayor en la disponibilidad anual: los anuncios asociados a anfitriones con múltiples alojamientos presentan una mediana de **310 días disponibles**, frente a **269 días** en los anuncios de anfitriones con una sola propiedad.
+
+Asimismo, los primeros presentan una mediana de **23 reseñas**, frente a **10 reseñas** en el segundo grupo. En términos descriptivos, las principales diferencias entre ambos tipos de anfitrión parecen relacionarse más con la disponibilidad y el número de reseñas que con el nivel de precios.
+
+# Identificación de perfiles de alojamientos
+
+En esta sección se busca identificar perfiles de alojamientos Airbnb a partir de sus características estructurales, económicas y de disponibilidad. Para ello, se emplean técnicas de análisis multivariado que permiten resumir la información contenida en las variables seleccionadas y posteriormente agrupar alojamientos con características similares.
+
+Las variables consideradas son el precio por noche, la capacidad de huéspedes, el número de habitaciones, baños y camas, así como la disponibilidad anual. Debido a las diferencias de escala entre estas variables, se utilizan sus versiones estandarizadas. Adicionalmente, el precio se transforma mediante logaritmo para reducir la influencia de valores extremadamente altos identificados durante el análisis exploratorio.
+
+```{r preparar-clustering, include=FALSE}
+airbnb_cluster <- airbnb_precio %>%
+  select(
+    id,
+    price,
+    accommodates,
+    bedrooms,
+    bathrooms,
+    beds,
+    availability_365
+  ) %>%
+  drop_na()
+```
+
+
+```{r estandarizar-clustering, include=FALSE}
+cluster_vars <- airbnb_cluster %>%
+  mutate(
+    log_price = log(price)
+  ) %>%
+  select(
+    log_price,
+    accommodates,
+    bedrooms,
+    bathrooms,
+    beds,
+    availability_365
+  )
+
+cluster_scaled <- scale(cluster_vars)
+```
+
+
+```{r pca-clustering, include=FALSE}
+pca_airbnb <- prcomp(
+  cluster_scaled,
+  center = FALSE,
+  scale. = FALSE
+)
+
+varianza_pca <- pca_airbnb$sdev^2 / sum(pca_airbnb$sdev^2)
+varianza_acumulada <- cumsum(varianza_pca)
+
+pca_varianza <- tibble(
+  componente = paste0("PC", 1:length(varianza_pca)),
+  varianza = varianza_pca * 100
+)
+```
+
+## Análisis de componentes principales
+
+Antes de realizar el agrupamiento, se aplica un análisis de componentes principales (PCA) sobre las variables estandarizadas con el objetivo de resumir su estructura y facilitar la visualización de los perfiles de alojamiento.
+
+```{r grafica-varianza-pca, echo=FALSE, fig.width=7, fig.height=5}
+ggplot(
+  pca_varianza,
+  aes(x = componente, y = varianza)
+) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0(round(varianza, 1), "%")),
+    vjust = -0.5
+  ) +
+  labs(
+    title = "Varianza explicada por componente principal",
+    x = "Componente principal",
+    y = "Varianza explicada (%)"
+  ) +
+  theme_minimal()
+```
+
+Los dos primeros componentes principales explican en conjunto el **74.13% de la variabilidad total** de las características consideradas. El primer componente (PC1) explica **57.38%** y está asociado principalmente con el tamaño y capacidad del alojamiento, al presentar cargas elevadas en número de habitaciones, camas, capacidad de huéspedes y baños, además de una asociación positiva con el precio.
+
+El segundo componente (PC2), que explica **16.75%** de la variabilidad, está determinado principalmente por la disponibilidad anual del alojamiento. De esta manera, los dos primeros componentes permiten representar los alojamientos mediante dos dimensiones interpretables: una relacionada principalmente con su tamaño y capacidad y otra con su disponibilidad.
+
+## Agrupamiento mediante K-means
+
+Con el objetivo de identificar perfiles de alojamientos con características similares, se aplica el algoritmo K-means sobre las variables previamente estandarizadas. Se utiliza inicialmente una solución de tres clusters, buscando obtener grupos generales e interpretables a partir de las características de los alojamientos.
+
+```{r kmeans-3, include=FALSE}
+set.seed(42)
+
+kmeans_3 <- kmeans(
+  cluster_scaled,
+  centers = 3,
+  nstart = 25
+)
+
+airbnb_cluster$cluster <- factor(kmeans_3$cluster)
+```
+
+Para visualizar la estructura de los grupos identificados mediante K-means, los alojamientos se proyectan sobre los dos primeros componentes principales. Esta representación permite observar la separación de los perfiles en un espacio bidimensional y relacionarla con las dimensiones identificadas mediante PCA.
+
+```{r preparar-pca-clusters, include=FALSE}
+pca_clusters <- as_tibble(
+  pca_airbnb$x[, 1:2]
+) %>%
+  mutate(
+    cluster = airbnb_cluster$cluster
+  )
+```
+
+
+```{r grafica-pca-clusters, echo=FALSE, fig.width=8, fig.height=6}
+ggplot(
+  pca_clusters,
+  aes(
+    x = PC1,
+    y = PC2,
+    color = cluster
+  )
+) +
+  geom_point(
+    alpha = 0.25,
+    size = 0.8
+  ) +
+  scale_color_discrete(
+    labels = c(
+      "1" = "Gran capacidad",
+      "2" = "Pequeños",
+      "3" = "Capacidad intermedia"
+    )
+  ) +
+  labs(
+    title = "Perfiles de alojamientos identificados mediante K-means",
+    subtitle = "Representación sobre los dos primeros componentes principales",
+    x = "PC1: tamaño y capacidad del alojamiento",
+    y = "PC2: disponibilidad anual",
+    color = "Perfil"
+  ) +
+  theme_minimal()
+```
+
+La aplicación de K-means permitió identificar **tres perfiles de alojamientos** entre los 22,717 registros con información completa utilizados en el análisis.
+
+El **Cluster 2**, que concentra el **63.2% de los alojamientos**, representa el perfil predominante y está compuesto principalmente por alojamientos pequeños. Presenta una capacidad mediana de **2 huéspedes**, **1 habitación**, **1 baño** y **1 cama**, con un precio mediano aproximado de **$1,504 MXN por noche**.
+
+El **Cluster 3** representa el **34.4% de los alojamientos** y corresponde a un perfil de capacidad intermedia. Estos alojamientos presentan una capacidad mediana de **5 huéspedes**, **2 habitaciones**, **2 baños** y **3 camas**, con un precio mediano aproximado de **$3,196 MXN por noche**.
+
+Finalmente, el **Cluster 1** agrupa únicamente al **2.37% de los alojamientos** y representa un perfil de gran capacidad. Su alojamiento típico presenta capacidad para **15 huéspedes**, **6 habitaciones**, **4.5 baños** y **8 camas**, acompañado de un precio mediano considerablemente mayor, de aproximadamente **$8,520 MXN por noche**.
+
+La representación de los clusters sobre los dos primeros componentes principales muestra que la separación ocurre principalmente a lo largo del primer componente, asociado con el tamaño y la capacidad del alojamiento. En contraste, existe una mayor superposición sobre el segundo componente, relacionado con la disponibilidad anual. Esto es consistente con las medianas de disponibilidad de los tres grupos, que fueron de **298, 324 y 279 días** para los clusters 1, 2 y 3, respectivamente.
+
+En conjunto, los resultados muestran que los perfiles identificados mediante K-means se diferencian principalmente por las características estructurales, la capacidad y el nivel de precio de los alojamientos, mientras que la disponibilidad anual presenta una menor capacidad de diferenciación entre los grupos.
+
+# Modelado del precio de los alojamientos
+
+En esta sección se analiza la relación entre las características de los alojamientos y su precio por noche mediante un modelo de regresión. Debido a la fuerte asimetría observada en la distribución del precio y a la presencia de valores extremadamente altos, se utiliza el logaritmo del precio como variable objetivo.
+
+El propósito del modelo es evaluar qué características presentan una mayor asociación con el nivel de precio de los alojamientos y determinar en qué medida dichas características permiten explicar su variabilidad.
+
+```{r preparar-regresion, include=FALSE}
+datos_regresion <- airbnb_sel %>%
+  select(
+    price,
+    accommodates,
+    bedrooms,
+    bathrooms,
+    beds,
+    room_type,
+    neighbourhood_cleansed,
+    host_is_superhost,
+    calculated_host_listings_count,
+    availability_365
+  ) %>%
+  drop_na() %>%
+  mutate(
+    log_price = log(price),
+    room_type = factor(room_type),
+    neighbourhood_cleansed = factor(neighbourhood_cleansed),
+    host_is_superhost = factor(host_is_superhost)
+  )
+```
+
+### División de los datos
+
+Para evaluar el desempeño del modelo sobre observaciones no utilizadas durante su estimación, los datos se dividen aleatoriamente en dos conjuntos: **80% para entrenamiento y 20% para prueba**. Se establece una semilla para garantizar la reproducibilidad de la partición.
+
+
+```{r dividir-regresion, include=FALSE}
+set.seed(42)
+
+indices_train <- sample(
+  seq_len(nrow(datos_regresion)),
+  size = 0.80 * nrow(datos_regresion)
+)
+
+train <- datos_regresion[indices_train, ]
+test  <- datos_regresion[-indices_train, ]
+```
+
+
+### Modelo de regresión lineal múltiple
+
+Se ajusta un modelo de regresión lineal múltiple utilizando como variable objetivo el logaritmo del precio por noche. Como variables explicativas se consideran características estructurales del alojamiento, el tipo de habitación, la ubicación, características del anfitrión y la disponibilidad anual.
+
+
+```{r modelo-regresion, include=FALSE}
+modelo_lm <- lm(
+  log_price ~
+    accommodates +
+    bedrooms +
+    bathrooms +
+    beds +
+    room_type +
+    neighbourhood_cleansed +
+    host_is_superhost +
+    calculated_host_listings_count +
+    availability_365,
+  data = train
+)
+```
+
+### Evaluación del modelo
+
+El desempeño del modelo se evalúa sobre el conjunto de prueba mediante el **error cuadrático medio en su raíz (RMSE)**, el **error absoluto medio (MAE)** y el **coeficiente de determinación (R²)**. Estas métricas permiten evaluar el error de las predicciones y la proporción de variabilidad explicada en observaciones no utilizadas durante el entrenamiento.
+
+```{r evaluar-regresion, include=FALSE}
+# Predicciones en escala logarítmica
+pred_log <- predict(
+  modelo_lm,
+  newdata = test
+)
+
+# Base para evaluar las predicciones
+evaluacion_lm <- tibble(
+  real_log = test$log_price,
+  pred_log = pred_log
+)
+
+# RMSE en escala logarítmica
+rmse_log <- sqrt(
+  mean(
+    (evaluacion_lm$real_log - evaluacion_lm$pred_log)^2
+  )
+)
+
+# MAE en escala logarítmica
+mae_log <- mean(
+  abs(
+    evaluacion_lm$real_log - evaluacion_lm$pred_log
+  )
+)
+
+# R cuadrada en el conjunto de prueba
+r2_test <- 1 - (
+  sum(
+    (evaluacion_lm$real_log - evaluacion_lm$pred_log)^2
+  ) /
+  sum(
+    (evaluacion_lm$real_log - mean(evaluacion_lm$real_log))^2
+  )
+)
+
+# Transformar las predicciones nuevamente a pesos
+pred_precio <- exp(pred_log)
+
+# RMSE en pesos
+rmse_pesos <- sqrt(
+  mean(
+    (test$price - pred_precio)^2
+  )
+)
+
+# MAE en pesos
+mae_pesos <- mean(
+  abs(
+    test$price - pred_precio
+  )
+)
+
+# Mediana del error absoluto en pesos
+mediana_error_abs <- median(
+  abs(
+    test$price - pred_precio
+  )
+)
+```
+
+El modelo presenta un **R² de 0.3939 en el conjunto de prueba**, por lo que las variables consideradas explican aproximadamente el **39.4% de la variabilidad del logaritmo del precio** en observaciones que no fueron utilizadas durante el entrenamiento. Este resultado es cercano al R² obtenido durante el entrenamiento (0.4014), lo que indica que el desempeño del modelo se mantiene relativamente estable fuera de la muestra.
+
+En escala logarítmica, el modelo obtiene un **RMSE de 0.6192** y un **MAE de 0.4419**. Al transformar las predicciones nuevamente a pesos, la mediana del error absoluto es de aproximadamente **$615 MXN**, lo que proporciona una referencia más intuitiva del error típico de predicción.
+
+El RMSE calculado directamente en pesos es considerablemente mayor debido a la presencia de precios extremos, ya que esta métrica penaliza de forma más intensa los errores grandes. Por esta razón, la evaluación se interpreta principalmente a partir de las métricas en escala logarítmica, el R² y la mediana del error absoluto.
+
+```{r interpretar-coeficientes, include=FALSE}
+coef_principales <- tibble(
+  variable = c(
+    "Capacidad (huéspedes)",
+    "Habitaciones",
+    "Baños",
+    "Camas",
+    "Superhost",
+    "Número de alojamientos del anfitrión",
+    "Disponibilidad anual"
+  ),
+  beta = c(
+    coef(modelo_lm)["accommodates"],
+    coef(modelo_lm)["bedrooms"],
+    coef(modelo_lm)["bathrooms"],
+    coef(modelo_lm)["beds"],
+    coef(modelo_lm)["host_is_superhostTRUE"],
+    coef(modelo_lm)["calculated_host_listings_count"],
+    coef(modelo_lm)["availability_365"]
+  )
+) %>%
+  mutate(
+    cambio_porcentual = 100 * (exp(beta) - 1)
+  )
+```
+
+### Interpretación de los efectos del modelo
+
+Una vez evaluado el desempeño predictivo del modelo, se analizan sus coeficientes con el objetivo de identificar las características asociadas con diferencias en el precio de los alojamientos. Debido a que la variable objetivo se encuentra expresada como el logaritmo del precio, los coeficientes se transforman a cambios porcentuales para facilitar su interpretación.
+
+Para las variables categóricas, los efectos se interpretan respecto a una categoría de referencia. En el tipo de alojamiento, la categoría de referencia es **Entire home/apt**, mientras que para la ubicación la referencia corresponde a **Álvaro Obregón**.
+
+```{r preparar-efectos-modelo, include=FALSE}
+efectos_modelo <- tibble(
+  variable = c(
+    "Capacidad (huéspedes)",
+    "Habitaciones",
+    "Baños",
+    "Camas",
+    "Superhost",
+    "Hotel room",
+    "Private room",
+    "Shared room",
+    "Coyoacán",
+    "Cuajimalpa de Morelos",
+    "Cuauhtémoc",
+    "Miguel Hidalgo",
+    "Tláhuac"
+  ),
+  beta = c(
+    coef(modelo_lm)["accommodates"],
+    coef(modelo_lm)["bedrooms"],
+    coef(modelo_lm)["bathrooms"],
+    coef(modelo_lm)["beds"],
+    coef(modelo_lm)["host_is_superhostTRUE"],
+    coef(modelo_lm)["room_typeHotel room"],
+    coef(modelo_lm)["room_typePrivate room"],
+    coef(modelo_lm)["room_typeShared room"],
+    coef(modelo_lm)["neighbourhood_cleansedCoyoacán"],
+    coef(modelo_lm)["neighbourhood_cleansedCuajimalpa de Morelos"],
+    coef(modelo_lm)["neighbourhood_cleansedCuauhtémoc"],
+    coef(modelo_lm)["neighbourhood_cleansedMiguel Hidalgo"],
+    coef(modelo_lm)["neighbourhood_cleansedTláhuac"]
+  ),
+  grupo = c(
+    rep("Características", 5),
+    rep("Tipo de alojamiento", 3),
+    rep("Ubicación", 5)
+  )
+) %>%
+  mutate(
+    cambio_porcentual = 100 * (exp(beta) - 1)
+  )
+```
+
+La siguiente figura presenta una selección de los efectos estimados más relevantes del modelo. Los valores positivos representan asociaciones con precios mayores y los valores negativos asociaciones con precios menores, manteniendo constantes las demás variables incluidas en la regresión.
+
+```{r grafica-efectos-modelo, echo=FALSE, fig.width=8, fig.height=7}
+ggplot(
+  efectos_modelo,
+  aes(
+    x = reorder(variable, cambio_porcentual),
+    y = cambio_porcentual
+  )
+) +
+  geom_col() +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed"
+  ) +
+  coord_flip() +
+  facet_wrap(
+    ~ grupo,
+    scales = "free_y",
+    ncol = 1
+  ) +
+  labs(
+    title = "Asociación de las características con el precio",
+    subtitle = "Cambio porcentual estimado manteniendo constantes las demás variables",
+    x = NULL,
+    y = "Cambio porcentual estimado (%)"
+  ) +
+  theme_minimal()
+```
+
+La regresión muestra que las características estructurales, el tipo de alojamiento y la ubicación presentan asociaciones importantes con el precio por noche. Manteniendo constantes las demás variables, una unidad adicional en la capacidad de huéspedes se asocia con un precio aproximadamente **13.6% mayor**, mientras que una habitación adicional se relaciona con un incremento cercano al **7.1%** y un baño adicional con aproximadamente **8.3%**.
+
+El número de camas presenta una asociación negativa cercana al **5%** al controlar simultáneamente por capacidad, habitaciones y baños. Este resultado debe interpretarse con precaución, ya que estas características se encuentran fuertemente relacionadas entre sí, como se observó previamente en el análisis de correlaciones.
+
+También se identifican diferencias importantes según el tipo de alojamiento. Tomando como referencia los alojamientos completos (**Entire home/apt**), los cuartos de hotel presentan un precio estimado aproximadamente **57% mayor**, mientras que las habitaciones privadas presentan un precio alrededor de **30% menor** y las habitaciones compartidas aproximadamente **68% menor**, manteniendo constantes las demás características.
+
+La ubicación también presenta asociaciones relevantes. Tomando **Álvaro Obregón** como categoría de referencia, Miguel Hidalgo muestra una de las mayores asociaciones positivas con el precio, mientras que Tláhuac presenta una asociación negativa considerable. Estos resultados refuerzan la importancia de la localización en la diferenciación de precios observada durante el análisis exploratorio.
+
+Por otra parte, el número de alojamientos administrados por el anfitrión y la disponibilidad anual no presentaron asociaciones estadísticamente significativas con el precio en este modelo. En conjunto, los resultados sugieren que las características estructurales del alojamiento, su modalidad y su ubicación tienen una mayor capacidad explicativa del precio.
+
+
+
+
+
+

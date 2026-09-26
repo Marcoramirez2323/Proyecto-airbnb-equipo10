@@ -1,0 +1,536 @@
+---
+title: "Airbnb en la Ciudad de México"
+subtitle: "¿Dónde se concentra la oferta y qué explica el precio por noche?"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    theme: cosmo
+    source_code: embed
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(scales)
+library(DT)
+library(plotly)
+library(leaflet)
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+
+# -----------------------------------------------------------------------------
+# CARGA Y LIMPIEZA (mismo pipeline que el notebook de análisis)
+# -----------------------------------------------------------------------------
+airbnb <- read_csv("data/listings.csv.gz")
+
+airbnb_sel <- airbnb |>
+  select(
+    id, host_id, host_is_superhost, host_listings_count,
+    calculated_host_listings_count, neighbourhood_cleansed,
+    latitude, longitude, property_type, room_type,
+    accommodates, bathrooms, bedrooms, beds, price,
+    minimum_nights, maximum_nights, availability_30, availability_365,
+    number_of_reviews, reviews_per_month, review_scores_rating
+  ) |>
+  mutate(price = parse_number(price))
+
+airbnb_precio <- airbnb_sel |>
+  filter(!is.na(price), price > 0)
+
+# -----------------------------------------------------------------------------
+# KPIs GENERALES
+# -----------------------------------------------------------------------------
+kpi_total          <- nrow(airbnb_precio)
+kpi_precio_mediano <- median(airbnb_precio$price)
+kpi_multi_host     <- mean(airbnb_precio$calculated_host_listings_count > 1)
+
+tabla_alcaldias <- airbnb_sel |>
+  count(neighbourhood_cleansed, name = "alojamientos") |>
+  mutate(porcentaje = round(alojamientos / sum(alojamientos) * 100, 2)) |>
+  arrange(desc(alojamientos))
+
+kpi_top3_pct <- tabla_alcaldias |>
+  slice_max(alojamientos, n = 3) |>
+  summarise(pct = sum(porcentaje)) |>
+  pull(pct)
+
+alcaldia_top <- tabla_alcaldias |> slice_max(alojamientos, n = 1)
+
+# -----------------------------------------------------------------------------
+# PRECIO POR ALCALDÍA
+# -----------------------------------------------------------------------------
+precio_alcaldia <- airbnb_precio |>
+  group_by(neighbourhood_cleansed) |>
+  summarise(
+    alojamientos   = n(),
+    precio_mediano = median(price),
+    .groups = "drop"
+  ) |>
+  arrange(desc(precio_mediano))
+
+# -----------------------------------------------------------------------------
+# TIPO DE ALOJAMIENTO
+# -----------------------------------------------------------------------------
+tabla_room_type <- airbnb_precio |>
+  count(room_type) |>
+  mutate(porcentaje = round(n / sum(n) * 100, 2)) |>
+  arrange(desc(n))
+
+# -----------------------------------------------------------------------------
+# CAPACIDAD Y PRECIO
+# -----------------------------------------------------------------------------
+precio_capacidad <- airbnb_precio |>
+  group_by(accommodates) |>
+  summarise(
+    mediana_precio = median(price),
+    alojamientos   = n(),
+    .groups = "drop"
+  ) |>
+  arrange(accommodates)
+
+# -----------------------------------------------------------------------------
+# TIPO DE ANFITRIÓN
+# -----------------------------------------------------------------------------
+airbnb_hosts <- airbnb_precio |>
+  mutate(
+    tipo_anfitrion = if_else(
+      calculated_host_listings_count == 1,
+      "Un solo alojamiento",
+      "Múltiples alojamientos"
+    )
+  )
+
+comparacion_hosts <- airbnb_hosts |>
+  group_by(tipo_anfitrion) |>
+  summarise(
+    anuncios                = n(),
+    precio_mediano          = median(price),
+    disponibilidad_mediana  = median(availability_365, na.rm = TRUE),
+    resenas_mediana         = median(number_of_reviews, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# -----------------------------------------------------------------------------
+# MAPA
+# -----------------------------------------------------------------------------
+airbnb_mapa <- airbnb_sel |>
+  filter(!is.na(latitude), !is.na(longitude))
+
+# -----------------------------------------------------------------------------
+# PERFILES DE ALOJAMIENTO (PCA + K-MEANS)
+# -----------------------------------------------------------------------------
+airbnb_cluster <- airbnb_precio |>
+  select(id, price, accommodates, bedrooms, bathrooms, beds, availability_365) |>
+  drop_na()
+
+cluster_vars <- airbnb_cluster |>
+  mutate(log_price = log(price)) |>
+  select(log_price, accommodates, bedrooms, bathrooms, beds, availability_365)
+
+cluster_scaled <- scale(cluster_vars)
+
+pca_airbnb <- prcomp(cluster_scaled, center = FALSE, scale. = FALSE)
+
+set.seed(42)
+kmeans_3 <- kmeans(cluster_scaled, centers = 3, nstart = 25)
+airbnb_cluster$cluster <- factor(kmeans_3$cluster)
+
+pca_clusters <- as_tibble(pca_airbnb$x[, 1:2]) |>
+  mutate(cluster = airbnb_cluster$cluster)
+
+etiquetas_cluster <- c(
+  "1" = "Gran capacidad",
+  "2" = "Pequeños",
+  "3" = "Capacidad intermedia"
+)
+
+# -----------------------------------------------------------------------------
+# MODELO DE PRECIO (REGRESIÓN LINEAL SOBRE LOG-PRECIO)
+# -----------------------------------------------------------------------------
+datos_regresion <- airbnb_sel |>
+  select(
+    price, accommodates, bedrooms, bathrooms, beds, room_type,
+    neighbourhood_cleansed, host_is_superhost,
+    calculated_host_listings_count, availability_365
+  ) |>
+  drop_na() |>
+  mutate(
+    log_price = log(price),
+    room_type = factor(room_type),
+    neighbourhood_cleansed = factor(neighbourhood_cleansed),
+    host_is_superhost = factor(host_is_superhost)
+  )
+
+set.seed(42)
+indices_train <- sample(seq_len(nrow(datos_regresion)), size = 0.80 * nrow(datos_regresion))
+train <- datos_regresion[indices_train, ]
+test  <- datos_regresion[-indices_train, ]
+
+modelo_lm <- lm(
+  log_price ~ accommodates + bedrooms + bathrooms + beds + room_type +
+    neighbourhood_cleansed + host_is_superhost +
+    calculated_host_listings_count + availability_365,
+  data = train
+)
+
+pred_log <- predict(modelo_lm, newdata = test)
+r2_test  <- 1 - sum((test$log_price - pred_log)^2) /
+                sum((test$log_price - mean(test$log_price))^2)
+
+pred_precio        <- exp(pred_log)
+mediana_error_abs  <- median(abs(test$price - pred_precio))
+
+efectos_modelo <- tibble(
+  variable = c(
+    "Capacidad (huéspedes)", "Habitaciones", "Baños", "Camas",
+    "Superhost", "Hotel room", "Private room", "Shared room"
+  ),
+  beta = c(
+    coef(modelo_lm)["accommodates"],
+    coef(modelo_lm)["bedrooms"],
+    coef(modelo_lm)["bathrooms"],
+    coef(modelo_lm)["beds"],
+    coef(modelo_lm)["host_is_superhostTRUE"],
+    coef(modelo_lm)["room_typeHotel room"],
+    coef(modelo_lm)["room_typePrivate room"],
+    coef(modelo_lm)["room_typeShared room"]
+  )
+) |>
+  mutate(cambio_porcentual = 100 * (exp(beta) - 1))
+
+# -----------------------------------------------------------------------------
+# PALETA DE COLORES
+# -----------------------------------------------------------------------------
+# azul = información principal; naranja = énfasis puntual; gris = apoyo.
+azul       <- "#2780E3"
+naranja    <- "#F39C12"
+gris       <- "#6C757D"
+azul_claro <- "#EAF3FC"
+
+# -----------------------------------------------------------------------------
+# TEMA GRÁFICO
+# -----------------------------------------------------------------------------
+tema_dashboard <- theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 13, margin = margin(b = 5)),
+    plot.subtitle = element_text(size = 10.5, color = gris, margin = margin(b = 8)),
+    axis.title = element_text(size = 10.5, color = gris),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "bottom",
+    plot.margin = margin(10, 12, 8, 8)
+  )
+```
+
+# Resumen ejecutivo
+
+## Row
+
+### Alojamientos analizados
+
+```{r}
+valueBox(
+  comma(kpi_total),
+  caption = "Alojamientos con precio disponible",
+  icon = "fa-home",
+  color = azul
+)
+```
+
+### Precio mediano
+
+```{r}
+valueBox(
+  paste0("$", comma(kpi_precio_mediano)),
+  caption = "Precio mediano por noche (MXN)",
+  icon = "fa-tag",
+  color = naranja
+)
+```
+
+### Concentración territorial
+
+```{r}
+valueBox(
+  paste0(round(kpi_top3_pct, 1), "%"),
+  caption = "Oferta en las 3 alcaldías principales",
+  icon = "fa-map-marker",
+  color = gris
+)
+```
+
+### Anfitriones con varias propiedades
+
+```{r}
+valueBox(
+  paste0(round(kpi_multi_host * 100, 1), "%"),
+  caption = "Anuncios de anfitriones con más de un alojamiento",
+  icon = "fa-users",
+  color = gris
+)
+```
+
+## Row
+
+### La oferta se concentra en pocas alcaldías {data-width=650}
+
+```{r}
+ggplotly(
+  ggplot(
+    tabla_alcaldias,
+    aes(x = reorder(neighbourhood_cleansed, alojamientos), y = alojamientos)
+  ) +
+    geom_col(fill = azul) +
+    coord_flip() +
+    scale_y_continuous(labels = comma) +
+    labs(
+      title = "Alojamientos Airbnb por alcaldía",
+      x = NULL, y = "Número de alojamientos"
+    ) +
+    tema_dashboard
+)
+```
+
+### La oferta se concentra en un tipo de alojamiento {data-width=350}
+
+```{r}
+ggplotly(
+  ggplot(
+    tabla_room_type,
+    aes(x = reorder(room_type, n), y = n)
+  ) +
+    geom_col(fill = naranja) +
+    coord_flip() +
+    scale_y_continuous(labels = comma) +
+    labs(
+      title = "Anuncios por tipo de alojamiento",
+      x = NULL, y = "Anuncios"
+    ) +
+    tema_dashboard
+)
+```
+
+## Row
+
+### Lectura ejecutiva
+
+> **Lectura en 20 segundos.** `r alcaldia_top$neighbourhood_cleansed[1]` concentra la mayor oferta, con más de `r comma(alcaldia_top$alojamientos[1])` alojamientos. Las tres alcaldías principales reúnen el `r round(kpi_top3_pct, 1)`% de la oferta total. El precio mediano general es de $`r comma(kpi_precio_mediano)` MXN por noche, y cerca del `r round(kpi_multi_host * 100)`% de los anuncios pertenece a anfitriones que administran más de una propiedad.
+
+# Diagnóstico operativo
+
+## Row
+
+### El precio depende fuertemente del tipo de alojamiento {data-width=600}
+
+```{r}
+ggplotly(
+  ggplot(airbnb_precio, aes(x = room_type, y = price)) +
+    geom_boxplot(fill = azul_claro, color = azul) +
+    scale_y_log10(labels = comma) +
+    labs(
+      title = "Precio según tipo de alojamiento",
+      x = NULL, y = "Precio por noche (MXN, escala log)"
+    ) +
+    tema_dashboard
+)
+```
+
+### El precio aumenta con la capacidad {data-width=400}
+
+```{r}
+ggplotly(
+  ggplot(precio_capacidad, aes(x = accommodates, y = mediana_precio)) +
+    geom_line(color = naranja) +
+    geom_point(color = naranja) +
+    scale_y_continuous(labels = comma) +
+    labs(
+      title = "Precio mediano según capacidad",
+      x = "Número de huéspedes", y = "Precio mediano (MXN)"
+    ) +
+    tema_dashboard
+)
+```
+
+## Row {.tabset}
+
+### Anfitriones: disponibilidad y reseñas
+
+```{r}
+comparacion_hosts |>
+  pivot_longer(
+    cols = c(disponibilidad_mediana, resenas_mediana),
+    names_to = "metrica", values_to = "valor"
+  ) |>
+  mutate(
+    metrica = recode(
+      metrica,
+      disponibilidad_mediana = "Disponibilidad (días/año)",
+      resenas_mediana = "Reseñas"
+    )
+  ) |>
+  ggplot(aes(x = tipo_anfitrion, y = valor, fill = metrica)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c(azul, naranja)) +
+  labs(
+    title = "Disponibilidad y reseñas según tipo de anfitrión",
+    x = NULL, y = NULL, fill = NULL
+  ) +
+  tema_dashboard
+```
+
+### Precio por alcaldía
+
+```{r}
+ggplotly(
+  ggplot(
+    precio_alcaldia,
+    aes(x = reorder(neighbourhood_cleansed, precio_mediano), y = precio_mediano)
+  ) +
+    geom_col(fill = azul) +
+    coord_flip() +
+    scale_y_continuous(labels = comma) +
+    labs(
+      title = "Precio mediano por alcaldía",
+      x = NULL, y = "Precio mediano (MXN)"
+    ) +
+    tema_dashboard
+)
+```
+
+### ¿Por qué estas dos vistas?
+
+Estas comparaciones son diagnósticos de segundo nivel: ayudan a explicar **por qué** varía el precio observado en el resumen ejecutivo (tipo de anfitrión, ubicación), pero no son la primera lectura del dashboard.
+
+# Perfiles y modelo
+
+## Row
+
+### Tres perfiles de alojamiento {data-width=650}
+
+```{r}
+ggplotly(
+  ggplot(pca_clusters, aes(x = PC1, y = PC2, color = cluster)) +
+    geom_point(alpha = 0.25, size = 0.8) +
+    scale_color_discrete(labels = etiquetas_cluster) +
+    labs(
+      title = "Perfiles de alojamiento identificados con K-means",
+      subtitle = "Proyección sobre los dos primeros componentes principales",
+      x = "PC1: tamaño y capacidad", y = "PC2: disponibilidad anual",
+      color = "Perfil"
+    ) +
+    tema_dashboard
+)
+```
+
+### Desempeño del modelo de precio {data-width=350}
+
+```{r}
+valueBox(
+  paste0(round(r2_test * 100, 1), "%"),
+  caption = "Varianza del precio explicada (R² en prueba)",
+  icon = "fa-line-chart",
+  color = azul
+)
+```
+
+```{r}
+valueBox(
+  paste0("$", comma(round(mediana_error_abs))),
+  caption = "Mediana del error de predicción (MXN)",
+  icon = "fa-bullseye",
+  color = naranja
+)
+```
+
+## Row
+
+### Qué características se asocian con el precio
+
+```{r}
+ggplotly(
+  ggplot(
+    efectos_modelo,
+    aes(x = reorder(variable, cambio_porcentual), y = cambio_porcentual)
+  ) +
+    geom_col(fill = azul) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    coord_flip() +
+    labs(
+      title = "Cambio porcentual estimado en el precio",
+      subtitle = "Manteniendo constantes las demás variables del modelo",
+      x = NULL, y = "Cambio porcentual estimado (%)"
+    ) +
+    tema_dashboard
+)
+```
+
+# Exploración
+
+## Column {data-width=650}
+
+### Distribución espacial de los alojamientos
+
+```{r}
+leaflet(airbnb_mapa) |>
+  addProviderTiles(providers$CartoDB.Positron) |>
+  addCircleMarkers(
+    lng = ~longitude,
+    lat = ~latitude,
+    radius = 2,
+    stroke = FALSE,
+    fillOpacity = 0.5,
+    clusterOptions = markerClusterOptions()
+  )
+```
+
+## Column {data-width=350}
+
+### Consulta de alojamientos
+
+```{r}
+airbnb_precio |>
+  select(neighbourhood_cleansed, room_type, accommodates, price) |>
+  slice_sample(n = min(500, nrow(airbnb_precio))) |>
+  datatable(
+    colnames = c("Alcaldía", "Tipo", "Huéspedes", "Precio (MXN)"),
+    options = list(pageLength = 6)
+  )
+```
+
+### Cierre
+
+Esta página concentra el detalle geográfico y la consulta libre de anuncios individuales: información útil para explorar, pero que no compite por atención con el resumen ejecutivo.
+
+# Justificación del diseño
+
+## Row
+
+### ¿Por qué este orden de páginas?
+
+El dashboard sigue el mismo flujo visto en clase: **resumen ejecutivo → diagnóstico → perfiles y modelo → exploración**. La primera página debe entenderse en segundos, sin leer texto adicional; las siguientes existen únicamente para responder "¿por qué?" a lo que ya se observó en la primera.
+
+- **Resumen ejecutivo**: solo 4 KPIs y 2 gráficas. El objetivo es que cualquier persona identifique, de un vistazo, dónde se concentra la oferta y cuál es el precio típico.
+- **Diagnóstico operativo**: aquí se explica el precio observado en la primera página (tipo de alojamiento, capacidad, anfitrión, alcaldía), no se introduce información nueva sin conexión con el resumen.
+- **Perfiles y modelo**: se deja para la tercera página porque requiere más contexto (PCA, K-means, regresión) — no es información que alguien necesite en los primeros 10 segundos.
+- **Exploración**: el mapa y la tabla de consulta van al final porque son para quien quiera profundizar caso por caso, no para la lectura general del dashboard.
+
+### ¿Por qué estas gráficas y no otras?
+
+- **Barras horizontales** para alcaldías y tipo de alojamiento: son categorías con nombres largos: las barras horizontales evitan etiquetas rotadas e ilegibles.
+- **Escala logarítmica** en el precio por tipo de alojamiento: el precio tiene una cola muy larga (alojamientos de lujo); sin escala log, los boxplots de la mayoría de los alojamientos se verían aplastados.
+- **Línea, no barras**, para precio vs. capacidad: lo que importa comunicar es la *tendencia* creciente, no comparar categorías independientes.
+- **Dispersión de PCA coloreada por cluster**, en vez de una tabla de perfiles: permite ver de un vistazo qué tan bien separados están los tres perfiles y a lo largo de qué dimensión (tamaño vs. disponibilidad).
+- **Mapa con clustering de marcadores**, no un mapa de calor: con más de 20 mil puntos, el clustering evita saturar el mapa y aun así deja ver la concentración real en el centro de la ciudad.
+
+### Qué decidimos no mostrar
+
+- No se incluyó una tabla cruda en el resumen ejecutivo: las tablas se reservaron para la página de exploración.
+- No se pusieron más de 4 KPIs en la primera página, para no diluir cuál es el valor realmente importante.
+- No se muestra el R² de entrenamiento junto al de prueba en un KPI: se prioriza el de prueba porque es el que refleja el desempeño real del modelo sobre datos no vistos.
