@@ -27,13 +27,22 @@ jobs:
       - name: Setup Pandoc
         uses: r-lib/actions/setup-pandoc@v2
 
+      - name: Install system dependencies for sf
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudunits2-dev libgdal-dev libgeos-dev libproj-dev
+
       - name: Install R packages
         run: |
-          Rscript -e 'install.packages(c("flexdashboard","tidyverse","scales","DT","plotly","leaflet","rmarkdown"))'
+          Rscript -e 'install.packages(c("flexdashboard","tidyverse","scales","DT","plotly","leaflet","rmarkdown","janitor","skimr","corrplot","sf"))'
 
       - name: Render dashboard
         run: |
           Rscript -e 'rmarkdown::render("dashboard_airbnb_cdmx.Rmd", output_file = "index.html", output_dir = "_site")'
+
+      - name: Render notebook
+        run: |
+          Rscript -e 'rmarkdown::render("Proyecto_airbnb.Rmd", output_file = "notebook.html", output_dir = "_site")'		
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v4
